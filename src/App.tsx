@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
 import Invoices from "./pages/Invoices";
 import Payments from "./pages/Payments";
+import Documents from "./pages/Documents";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="/members" element={<Members />} />
               <Route path="/invoices" element={<Invoices />} />
               <Route path="/payments" element={<Payments />} />
+              <Route path="/documents" element={<Documents />} />
             </Route>
 
             {/* Redirects */}

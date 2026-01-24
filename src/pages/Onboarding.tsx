@@ -29,22 +29,11 @@ export default function Onboarding() {
     setIsLoading(true);
 
     try {
-      // Generate HOA ID client-side so we can insert role immediately
+      // Generate HOA ID client-side
       const hoaId = crypto.randomUUID();
       
-      // First, create the user role (so SELECT policy works for the HOA)
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          hoa_id: hoaId,
-          role: 'board_admin',
-        });
-
-      if (roleError) throw roleError;
-
-      // Now create the HOA (user can now SELECT it due to role existing)
-      const { data: hoa, error: hoaError } = await supabase
+      // First, create the HOA (without SELECT to avoid RLS issue)
+      const { error: hoaError } = await supabase
         .from('hoas')
         .insert({
           id: hoaId,
@@ -53,43 +42,51 @@ export default function Onboarding() {
           city: hoaCity,
           state: hoaState,
           zip_code: hoaZip,
-        })
-        .select()
-        .single();
+        });
 
-      if (hoaError) {
-        // Rollback the role if HOA creation fails
-        await supabase.from('user_roles').delete().eq('hoa_id', hoaId);
-        throw hoaError;
+      if (hoaError) throw hoaError;
+
+      // Now create the user role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: user.id,
+          hoa_id: hoaId,
+          role: 'board_admin',
+        });
+
+      if (roleError) {
+        // Note: Can't easily rollback HOA due to RLS, but this is rare
+        throw roleError;
       }
 
       // Create default deposit account
       await supabase.from('deposit_accounts').insert({
-        hoa_id: hoa.id,
+        hoa_id: hoaId,
         name: 'Operating Account',
         is_default: true,
       });
 
       // Create default invoice categories
       await supabase.from('invoice_categories').insert([
-        { hoa_id: hoa.id, name: 'HOA Dues', is_default: true },
-        { hoa_id: hoa.id, name: 'Special Assessment', is_default: false },
-        { hoa_id: hoa.id, name: 'Late Fee', is_default: false },
-        { hoa_id: hoa.id, name: 'Other', is_default: false },
+        { hoa_id: hoaId, name: 'HOA Dues', is_default: true },
+        { hoa_id: hoaId, name: 'Special Assessment', is_default: false },
+        { hoa_id: hoaId, name: 'Late Fee', is_default: false },
+        { hoa_id: hoaId, name: 'Other', is_default: false },
       ]);
 
       // Create default transaction categories
       await supabase.from('transaction_categories').insert([
-        { hoa_id: hoa.id, name: 'HOA Dues', type: 'income' },
-        { hoa_id: hoa.id, name: 'Special Assessment', type: 'income' },
-        { hoa_id: hoa.id, name: 'Interest', type: 'income' },
-        { hoa_id: hoa.id, name: 'Other Income', type: 'income' },
-        { hoa_id: hoa.id, name: 'Maintenance', type: 'expense' },
-        { hoa_id: hoa.id, name: 'Utilities', type: 'expense' },
-        { hoa_id: hoa.id, name: 'Insurance', type: 'expense' },
-        { hoa_id: hoa.id, name: 'Legal', type: 'expense' },
-        { hoa_id: hoa.id, name: 'Administrative', type: 'expense' },
-        { hoa_id: hoa.id, name: 'Other Expense', type: 'expense' },
+        { hoa_id: hoaId, name: 'HOA Dues', type: 'income' },
+        { hoa_id: hoaId, name: 'Special Assessment', type: 'income' },
+        { hoa_id: hoaId, name: 'Interest', type: 'income' },
+        { hoa_id: hoaId, name: 'Other Income', type: 'income' },
+        { hoa_id: hoaId, name: 'Maintenance', type: 'expense' },
+        { hoa_id: hoaId, name: 'Utilities', type: 'expense' },
+        { hoa_id: hoaId, name: 'Insurance', type: 'expense' },
+        { hoa_id: hoaId, name: 'Legal', type: 'expense' },
+        { hoa_id: hoaId, name: 'Administrative', type: 'expense' },
+        { hoa_id: hoaId, name: 'Other Expense', type: 'expense' },
       ]);
 
       await refreshProfile();

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, ArrowRight } from 'lucide-react';
+import { Building2, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Onboarding() {
@@ -17,8 +17,18 @@ export default function Onboarding() {
   const [hoaState, setHoaState] = useState('');
   const [hoaZip, setHoaZip] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { user, refreshProfile } = useAuth();
+  const [isCheckingRole, setIsCheckingRole] = useState(true);
+  const { user, userRole, refreshProfile } = useAuth();
   const navigate = useNavigate();
+
+  // Check if user already has a role (HOA setup complete)
+  useEffect(() => {
+    if (userRole) {
+      navigate('/dashboard', { replace: true });
+    } else if (user) {
+      setIsCheckingRole(false);
+    }
+  }, [userRole, user, navigate]);
 
   const handleCreateHOA = async () => {
     if (!user) {
@@ -98,6 +108,14 @@ export default function Onboarding() {
       setIsLoading(false);
     }
   };
+
+  if (isCheckingRole) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">

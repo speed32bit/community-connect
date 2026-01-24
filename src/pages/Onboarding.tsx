@@ -29,10 +29,25 @@ export default function Onboarding() {
     setIsLoading(true);
 
     try {
-      // Create the HOA
+      // Generate HOA ID client-side so we can insert role immediately
+      const hoaId = crypto.randomUUID();
+      
+      // First, create the user role (so SELECT policy works for the HOA)
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: user.id,
+          hoa_id: hoaId,
+          role: 'board_admin',
+        });
+
+      if (roleError) throw roleError;
+
+      // Now create the HOA (user can now SELECT it due to role existing)
       const { data: hoa, error: hoaError } = await supabase
         .from('hoas')
         .insert({
+          id: hoaId,
           name: hoaName,
           address: hoaAddress,
           city: hoaCity,
@@ -42,18 +57,11 @@ export default function Onboarding() {
         .select()
         .single();
 
-      if (hoaError) throw hoaError;
-
-      // Assign the user as board_admin
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          hoa_id: hoa.id,
-          role: 'board_admin',
-        });
-
-      if (roleError) throw roleError;
+      if (hoaError) {
+        // Rollback the role if HOA creation fails
+        await supabase.from('user_roles').delete().eq('hoa_id', hoaId);
+        throw hoaError;
+      }
 
       // Create default deposit account
       await supabase.from('deposit_accounts').insert({

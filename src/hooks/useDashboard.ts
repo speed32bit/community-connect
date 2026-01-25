@@ -140,42 +140,59 @@ export function useDashboardChart() {
     queryFn: async (): Promise<ChartData[]> => {
       if (!hoa?.id) return [];
 
-      const chartData: ChartData[] = [];
       const today = new Date();
+      const startDate = startOfMonth(subMonths(today, 11));
+      const endDate = endOfMonth(today);
 
+      // Fetch all invoices and payments for the last 12 months in one query each
+      const [invoicesResult, paymentsResult] = await Promise.all([
+        supabase
+          .from('invoices')
+          .select('issue_date, amount, discount, late_fee')
+          .eq('hoa_id', hoa.id)
+          .gte('issue_date', startDate.toISOString().split('T')[0])
+          .lte('issue_date', endDate.toISOString().split('T')[0])
+          .is('deleted_at', null),
+        supabase
+          .from('payments')
+          .select('payment_date, amount')
+          .eq('hoa_id', hoa.id)
+          .gte('payment_date', startDate.toISOString().split('T')[0])
+          .lte('payment_date', endDate.toISOString().split('T')[0]),
+      ]);
+
+      const invoices = invoicesResult.data || [];
+      const payments = paymentsResult.data || [];
+
+      // Build chart data by grouping by month
+      const chartData: ChartData[] = [];
+      
       for (let i = 11; i >= 0; i--) {
         const monthDate = subMonths(today, i);
         const monthStart = startOfMonth(monthDate);
         const monthEnd = endOfMonth(monthDate);
 
-        // Get invoices issued in this month
-        const { data: invoices } = await supabase
-          .from('invoices')
-          .select('amount, discount, late_fee')
-          .eq('hoa_id', hoa.id)
-          .gte('issue_date', monthStart.toISOString().split('T')[0])
-          .lte('issue_date', monthEnd.toISOString().split('T')[0])
-          .is('deleted_at', null);
+        const invoiced = invoices
+          .filter(inv => {
+            const date = parseISO(inv.issue_date);
+            return date >= monthStart && date <= monthEnd;
+          })
+          .reduce(
+            (sum, inv) => sum + parseFloat(String(inv.amount)) - 
+                          parseFloat(String(inv.discount || 0)) + 
+                          parseFloat(String(inv.late_fee || 0)),
+            0
+          );
 
-        const invoiced = (invoices || []).reduce(
-          (sum, inv) => sum + parseFloat(String(inv.amount)) - 
-                        parseFloat(String(inv.discount || 0)) + 
-                        parseFloat(String(inv.late_fee || 0)),
-          0
-        );
-
-        // Get payments in this month
-        const { data: payments } = await supabase
-          .from('payments')
-          .select('amount')
-          .eq('hoa_id', hoa.id)
-          .gte('payment_date', monthStart.toISOString().split('T')[0])
-          .lte('payment_date', monthEnd.toISOString().split('T')[0]);
-
-        const collected = (payments || []).reduce(
-          (sum, p) => sum + parseFloat(String(p.amount)),
-          0
-        );
+        const collected = payments
+          .filter(p => {
+            const date = parseISO(p.payment_date);
+            return date >= monthStart && date <= monthEnd;
+          })
+          .reduce(
+            (sum, p) => sum + parseFloat(String(p.amount)),
+            0
+          );
 
         chartData.push({
           month: format(monthDate, 'MMM'),

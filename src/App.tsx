@@ -14,6 +14,7 @@ import Onboarding from "./pages/Onboarding";
 // App pages
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
+import UnitDetail from "./pages/UnitDetail";
 import Invoices from "./pages/Invoices";
 import Payments from "./pages/Payments";
 import Transactions from "./pages/Transactions";
@@ -45,6 +46,7 @@ const App = () => (
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/members" element={<Members />} />
+              <Route path="/members/:id" element={<UnitDetail />} />
               <Route path="/invoices" element={<Invoices />} />
               <Route path="/payments" element={<Payments />} />
               <Route path="/transactions" element={<Transactions />} />

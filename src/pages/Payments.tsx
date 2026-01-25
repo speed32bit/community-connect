@@ -1,4 +1,5 @@
-import { CreditCard, Search, FileDown } from 'lucide-react';
+import { useState } from 'react';
+import { CreditCard, Search, FileDown, Loader2 } from 'lucide-react';
 import { usePayments } from '@/hooks/usePayments';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -15,11 +16,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { useState } from 'react';
+import { downloadCSV, formatCurrencyForCSV, formatDateForCSV } from '@/lib/csv-export';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Payments() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [exporting, setExporting] = useState(false);
   const { data: payments, isLoading } = usePayments();
+  const { toast } = useToast();
 
   const filteredPayments = payments?.filter((payment) => {
     if (!searchQuery) return true;
@@ -31,6 +35,31 @@ export default function Payments() {
       payment.reference_number?.toLowerCase().includes(search)
     );
   });
+
+  const handleExport = () => {
+    if (!payments || payments.length === 0) {
+      toast({ title: 'No data', description: 'No payments to export' });
+      return;
+    }
+    
+    setExporting(true);
+    try {
+      const exportData = payments.map(p => ({
+        'Date': formatDateForCSV(p.payment_date),
+        'Unit': p.unit?.unit_number || '',
+        'Invoice': p.invoice?.invoice_number || '',
+        'Invoice Title': p.invoice?.title || '',
+        'Amount': formatCurrencyForCSV(Number(p.amount)),
+        'Method': p.payment_method.replace('_', ' '),
+        'Reference': p.reference_number || '',
+        'Notes': p.notes || '',
+      }));
+      downloadCSV(exportData, 'payments_export');
+      toast({ title: 'Export complete', description: 'Payments exported successfully' });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const getMethodBadge = (method: string) => {
     const variants: Record<string, string> = {
@@ -54,8 +83,12 @@ export default function Payments() {
         title="Payments"
         description="View and manage payment history"
         actions={
-          <Button variant="outline">
-            <FileDown className="mr-2 h-4 w-4" />
+          <Button variant="outline" onClick={handleExport} disabled={exporting}>
+            {exporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
             Export CSV
           </Button>
         }

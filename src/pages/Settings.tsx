@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Building2, DollarSign, Bell, Users } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, DollarSign, Bell, Users, Database, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUpdateHOA } from '@/hooks/useSettings';
+import { useSeedDemoData } from '@/hooks/useSeedData';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -20,6 +21,7 @@ import { DuesFrequency } from '@/types/database';
 export default function Settings() {
   const { hoa, isBoardAdmin } = useAuth();
   const updateHOA = useUpdateHOA();
+  const seedData = useSeedDemoData();
 
   const [hoaSettings, setHoaSettings] = useState({
     name: '',
@@ -92,6 +94,10 @@ export default function Settings() {
           <TabsTrigger value="dues" className="gap-2">
             <DollarSign className="h-4 w-4" />
             Dues & Fees
+          </TabsTrigger>
+          <TabsTrigger value="data" className="gap-2">
+            <Database className="h-4 w-4" />
+            Data
           </TabsTrigger>
         </TabsList>
 
@@ -240,6 +246,37 @@ export default function Settings() {
                   {updateHOA.isPending ? 'Saving...' : 'Save Settings'}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="data">
+          <Card>
+            <CardHeader>
+              <CardTitle>Demo Data</CardTitle>
+              <CardDescription>Populate your HOA with sample data for testing</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Generate demo units, invoices, payments, and transactions to explore all features of the platform. 
+                This will create 5 sample units with 3 months of invoice history.
+              </p>
+              <Button 
+                onClick={() => seedData.mutate()}
+                disabled={seedData.isPending}
+              >
+                {seedData.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Database className="mr-2 h-4 w-4" />
+                    Generate Demo Data
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

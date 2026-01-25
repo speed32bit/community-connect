@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PiggyBank, Plus, Calendar } from 'lucide-react';
 import { useBudgets, useCreateBudget } from '@/hooks/useBudgets';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -18,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/format';
 
 export default function Budgets() {
+  const navigate = useNavigate();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newBudget, setNewBudget] = useState({
     name: '',
@@ -31,6 +33,10 @@ export default function Budgets() {
     await createBudget.mutateAsync(newBudget);
     setShowCreateDialog(false);
     setNewBudget({ name: '', fiscal_year: new Date().getFullYear() });
+  };
+
+  const handleBudgetClick = (budgetId: string) => {
+    navigate(`/budgets/${budgetId}`);
   };
 
   return (
@@ -63,7 +69,11 @@ export default function Budgets() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {budgets?.map((budget) => (
-            <Card key={budget.id} className="hover:shadow-md transition-shadow cursor-pointer">
+            <Card 
+              key={budget.id} 
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleBudgetClick(budget.id)}
+            >
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">{budget.name}</CardTitle>

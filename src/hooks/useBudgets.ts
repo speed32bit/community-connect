@@ -65,15 +65,31 @@ export function useBudget(budgetId: string | null) {
 
       const { data, error } = await supabase
         .from('budgets')
-        .select(`
-          *,
-          lines:budget_lines(*)
-        `)
+        .select('*')
         .eq('id', budgetId)
         .single();
 
       if (error) throw error;
-      return data as Budget & { lines: BudgetLine[] };
+      return data as Budget;
+    },
+    enabled: !!budgetId,
+  });
+}
+
+export function useBudgetLines(budgetId: string | null) {
+  return useQuery({
+    queryKey: ['budget_lines', budgetId],
+    queryFn: async () => {
+      if (!budgetId) return [];
+
+      const { data, error } = await supabase
+        .from('budget_lines')
+        .select('*')
+        .eq('budget_id', budgetId)
+        .order('category_name');
+
+      if (error) throw error;
+      return data as BudgetLine[];
     },
     enabled: !!budgetId,
   });
@@ -109,4 +125,202 @@ export function useCreateBudget() {
       toast({ title: 'Failed to create budget', description: error.message, variant: 'destructive' });
     },
   });
+}
+
+interface UpdateBudgetData {
+  id: string;
+  name?: string;
+  fiscal_year?: number;
+  is_active?: boolean;
+  total_amount?: number;
+}
+
+export function useUpdateBudget() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, ...data }: UpdateBudgetData) => {
+      const { error } = await supabase
+        .from('budgets')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
+      toast({ title: 'Budget updated successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update budget', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteBudget() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Delete budget lines first
+      await supabase.from('budget_lines').delete().eq('budget_id', id);
+      
+      const { error } = await supabase.from('budgets').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      toast({ title: 'Budget deleted successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to delete budget', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+interface CreateBudgetLineData {
+  budget_id: string;
+  category_name: string;
+  january?: number;
+  february?: number;
+  march?: number;
+  april?: number;
+  may?: number;
+  june?: number;
+  july?: number;
+  august?: number;
+  september?: number;
+  october?: number;
+  november?: number;
+  december?: number;
+}
+
+export function useCreateBudgetLine() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: CreateBudgetLineData) => {
+      // Don't include annual_total - it's a computed column
+      const { error } = await supabase.from('budget_lines').insert(data);
+      if (error) throw error;
+
+      // Update budget total
+      await updateBudgetTotal(data.budget_id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget_lines'] });
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      toast({ title: 'Line item added successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to add line item', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+interface UpdateBudgetLineData {
+  id: string;
+  category_name?: string;
+  january?: number;
+  february?: number;
+  march?: number;
+  april?: number;
+  may?: number;
+  june?: number;
+  july?: number;
+  august?: number;
+  september?: number;
+  october?: number;
+  november?: number;
+  december?: number;
+}
+
+export function useUpdateBudgetLine() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, ...data }: UpdateBudgetLineData) => {
+      // Get the budget_id first
+      const { data: line } = await supabase
+        .from('budget_lines')
+        .select('budget_id')
+        .eq('id', id)
+        .single();
+
+      // Don't include annual_total - it's a computed column
+      const { error } = await supabase
+        .from('budget_lines')
+        .update(data)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update budget total
+      if (line?.budget_id) {
+        await updateBudgetTotal(line.budget_id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget_lines'] });
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      toast({ title: 'Line item updated successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update line item', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteBudgetLine() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Get the budget_id first
+      const { data: line } = await supabase
+        .from('budget_lines')
+        .select('budget_id')
+        .eq('id', id)
+        .single();
+
+      const { error } = await supabase.from('budget_lines').delete().eq('id', id);
+      if (error) throw error;
+
+      // Update budget total
+      if (line?.budget_id) {
+        await updateBudgetTotal(line.budget_id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget_lines'] });
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      toast({ title: 'Line item deleted successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to delete line item', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+async function updateBudgetTotal(budgetId: string) {
+  const { data: lines } = await supabase
+    .from('budget_lines')
+    .select('annual_total')
+    .eq('budget_id', budgetId);
+
+  const total = (lines || []).reduce((sum, line) => sum + (Number(line.annual_total) || 0), 0);
+
+  await supabase
+    .from('budgets')
+    .update({ total_amount: total })
+    .eq('id', budgetId);
 }

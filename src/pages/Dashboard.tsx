@@ -110,9 +110,15 @@ export default function Dashboard() {
                 <div className="flex h-full items-center justify-center">
                   <p className="text-muted-foreground">Loading chart...</p>
                 </div>
+              ) : !chartData || chartData.length === 0 || chartData.every(d => d.invoiced === 0 && d.collected === 0) ? (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <TrendingUp className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground">No financial data yet</p>
+                  <p className="text-sm text-muted-foreground">Create invoices and record payments to see your chart</p>
+                </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData || []}>
+                  <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                     <XAxis dataKey="month" className="text-muted-foreground" />
                     <YAxis 

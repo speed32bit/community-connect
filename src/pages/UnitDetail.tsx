@@ -74,7 +74,7 @@ export default function UnitDetail() {
     notes: '',
   });
   const [addMemberForm, setAddMemberForm] = useState({
-    user_id: '',
+    email: '',
     member_type: 'resident' as 'owner' | 'resident',
     is_primary: false,
     move_in_date: new Date().toISOString().split('T')[0],
@@ -121,17 +121,17 @@ export default function UnitDetail() {
   };
 
   const handleAddMember = async () => {
-    if (!id || !addMemberForm.user_id) return;
+    if (!id || !addMemberForm.email) return;
     await addMember.mutateAsync({
       unit_id: id,
-      user_id: addMemberForm.user_id,
+      email: addMemberForm.email,
       member_type: addMemberForm.member_type,
       is_primary: addMemberForm.member_type === 'owner' ? addMemberForm.is_primary : false,
       move_in_date: addMemberForm.move_in_date || undefined,
     });
     setShowAddMemberDialog(false);
     setAddMemberForm({
-      user_id: '',
+      email: '',
       member_type: 'resident',
       is_primary: false,
       move_in_date: new Date().toISOString().split('T')[0],
@@ -567,14 +567,17 @@ export default function UnitDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="user_id">Select User/Email *</Label>
+              <Label htmlFor="email">Email Address *</Label>
               <Input
-                id="user_id"
-                placeholder="Enter email or user ID"
-                value={addMemberForm.user_id}
-                onChange={(e) => setAddMemberForm({ ...addMemberForm, user_id: e.target.value })}
+                id="email"
+                type="email"
+                placeholder="member@example.com"
+                value={addMemberForm.email}
+                onChange={(e) => setAddMemberForm({ ...addMemberForm, email: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">User must be invited to the HOA first</p>
+              <p className="text-xs text-muted-foreground">
+                If the person isn't registered yet, they'll receive an invitation
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -624,7 +627,7 @@ export default function UnitDetail() {
             <Button variant="outline" onClick={() => setShowAddMemberDialog(false)}>Cancel</Button>
             <Button 
               onClick={handleAddMember} 
-              disabled={!addMemberForm.user_id || addMember.isPending}
+              disabled={!addMemberForm.email || addMember.isPending}
             >
               {addMember.isPending ? 'Adding...' : 'Add Member'}
             </Button>

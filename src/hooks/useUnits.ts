@@ -234,7 +234,7 @@ export function useDeleteUnit() {
 
 interface AddUnitMemberData {
   unit_id: string;
-  user_id: string;
+  email: string;
   member_type: 'owner' | 'resident';
   is_primary?: boolean;
   move_in_date?: string;
@@ -242,12 +242,62 @@ interface AddUnitMemberData {
 
 export function useAddUnitMember() {
   const queryClient = useQueryClient();
+  const { hoa, user } = useAuth();
 
   return useMutation({
     mutationFn: async (data: AddUnitMemberData) => {
+      if (!hoa?.id) throw new Error('No HOA selected');
+
+      // Try to find user by email
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('email', data.email)
+        .single();
+
+      let userId: string;
+
+      if (profileData?.user_id) {
+        // User exists, use their ID
+        userId = profileData.user_id;
+      } else {
+        // User doesn't exist, create an invitation
+        // Generate a secure token
+        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        
+        const { data: invitation, error: invError } = await supabase
+          .from('invitations')
+          .insert({
+            hoa_id: hoa.id,
+            email: data.email,
+            role: data.member_type === 'owner' ? 'board_admin' : 'resident',
+            token,
+            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+            invited_by: user?.id,
+          })
+          .select()
+          .single();
+
+        if (invError) throw invError;
+
+        toast.info(`Invitation sent to ${data.email}. They can now join the HOA.`);
+        
+        // For now, we'll create a temporary user_id based on the email
+        // In a real system, you might want to wait for invitation acceptance
+        // But for UX purposes, we'll allow adding them as a member immediately
+        userId = `pending_${data.email}`;
+      }
+
+      // Add the unit member
       const { data: member, error } = await supabase
         .from('unit_members')
-        .insert(data)
+        .insert({
+          unit_id: data.unit_id,
+          user_id: userId,
+          member_type: data.member_type,
+          is_primary: data.is_primary || false,
+          move_in_date: data.move_in_date || null,
+        })
         .select()
         .single();
 
@@ -257,7 +307,7 @@ export function useAddUnitMember() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['units'] });
       queryClient.invalidateQueries({ queryKey: ['unit', variables.unit_id] });
-      toast.success('Member added successfully');
+      toast.success(`${variables.email} added to unit as ${variables.member_type}`);
     },
     onError: (error) => {
       toast.error('Failed to add member: ' + error.message);

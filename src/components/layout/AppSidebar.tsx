@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   MessageSquare,
   BarChart3,
+  TrendingUp,
   FolderOpen,
   Settings,
   Building2,
@@ -40,6 +41,7 @@ const mainNavItems = [
 const operationsNavItems = [
   { title: 'Collections', icon: AlertTriangle, href: '/collections', roles: ['board_admin', 'property_manager'] },
   { title: 'Communications', icon: MessageSquare, href: '/communications', roles: ['board_admin', 'property_manager', 'resident'] },
+  { title: 'Financial Reports', icon: TrendingUp, href: '/financial-reports', roles: ['board_admin', 'property_manager'] },
   { title: 'Reports', icon: BarChart3, href: '/reports', roles: ['board_admin', 'property_manager'] },
   { title: 'Documents', icon: FolderOpen, href: '/documents', roles: ['board_admin', 'property_manager', 'resident'] },
 ];

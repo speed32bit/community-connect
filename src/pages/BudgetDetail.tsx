@@ -9,6 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BudgetAssessmentSettings } from '@/components/budget/BudgetAssessmentSettings';
+import { AssessmentPreview } from '@/components/budget/AssessmentPreview';
+import { GenerateInvoicesDialog } from '@/components/budget/GenerateInvoicesDialog';
+import { BudgetImportExport } from '@/components/budget/BudgetImportExport';
 import {
   Table,
   TableBody,
@@ -87,6 +91,7 @@ export default function BudgetDetail() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [lineToDelete, setLineToDelete] = useState<string | null>(null);
   const [showDeleteBudgetDialog, setShowDeleteBudgetDialog] = useState(false);
+  const [showGenerateInvoicesDialog, setShowGenerateInvoicesDialog] = useState(false);
 
   const handleOpenLineDialog = (line?: BudgetLine) => {
     if (line) {
@@ -243,6 +248,54 @@ export default function BudgetDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Assessment & Invoicing Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <BudgetAssessmentSettings
+          budgetId={id!}
+          budgetName={budget?.name || ''}
+          budgetTotal={grandTotal}
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Generate Invoices</CardTitle>
+            <CardDescription>Create assessment invoices for all units</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">
+                Generate invoices based on this budget and your unit allocation settings.
+              </p>
+              <Button
+                onClick={() => setShowGenerateInvoicesDialog(true)}
+                className="w-full"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Generate Assessment Invoices
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Assessment Preview */}
+      <AssessmentPreview budgetId={id!} budgetTotal={grandTotal} />
+
+      {/* Import/Export Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Import/Export</CardTitle>
+          <CardDescription>Download or import budget data as CSV</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BudgetImportExport
+            budgetId={id!}
+            budgetName={budget?.name || ''}
+            budgetLines={lines || []}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -416,6 +469,18 @@ export default function BudgetDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Generate Invoices Dialog */}
+      {budget && (
+        <GenerateInvoicesDialog
+          budgetId={id!}
+          budgetName={budget.name}
+          budgetTotal={grandTotal}
+          unitCount={10} // This will come from the calculated assessments
+          isOpen={showGenerateInvoicesDialog}
+          onOpenChange={setShowGenerateInvoicesDialog}
+        />
+      )}
     </div>
   );
 }

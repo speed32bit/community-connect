@@ -20,6 +20,7 @@ import Payments from "./pages/Payments";
 import Transactions from "./pages/Transactions";
 import Budgets from "./pages/Budgets";
 import BudgetDetail from "./pages/BudgetDetail";
+import FinancialReports from "./pages/FinancialReports";
 import Collections from "./pages/Collections";
 import Communications from "./pages/Communications";
 import Reports from "./pages/Reports";
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/budgets" element={<Budgets />} />
               <Route path="/budgets/:id" element={<BudgetDetail />} />
+              <Route path="/financial-reports" element={<FinancialReports />} />
               <Route path="/collections" element={<Collections />} />
               <Route path="/communications" element={<Communications />} />
               <Route path="/reports" element={<Reports />} />

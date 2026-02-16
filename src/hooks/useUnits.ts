@@ -231,3 +231,64 @@ export function useDeleteUnit() {
     },
   });
 }
+
+interface AddUnitMemberData {
+  unit_id: string;
+  user_id: string;
+  member_type: 'owner' | 'resident';
+  is_primary?: boolean;
+  move_in_date?: string;
+}
+
+export function useAddUnitMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: AddUnitMemberData) => {
+      const { data: member, error } = await supabase
+        .from('unit_members')
+        .insert(data)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return member;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['units'] });
+      queryClient.invalidateQueries({ queryKey: ['unit', variables.unit_id] });
+      toast.success('Member added successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to add member: ' + error.message);
+    },
+  });
+}
+
+interface RemoveUnitMemberData {
+  unit_id: string;
+  member_id: string;
+}
+
+export function useRemoveUnitMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ unit_id, member_id }: RemoveUnitMemberData) => {
+      const { error } = await supabase
+        .from('unit_members')
+        .delete()
+        .eq('id', member_id);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['units'] });
+      queryClient.invalidateQueries({ queryKey: ['unit', variables.unit_id] });
+      toast.success('Member removed successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to remove member: ' + error.message);
+    },
+  });
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Trash2, Plus, User, Mail, Phone, Calendar, Home, DollarSign } from 'lucide-react';
-import { useUnit, useUpdateUnit, useDeleteUnit } from '@/hooks/useUnits';
+import { ArrowLeft, Edit2, Trash2, Plus, User, Mail, Phone, Calendar, Home, DollarSign, X } from 'lucide-react';
+import { useUnit, useUpdateUnit, useDeleteUnit, useAddUnitMember, useRemoveUnitMember } from '@/hooks/useUnits';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -48,9 +55,13 @@ export default function UnitDetail() {
   const { data: unit, isLoading } = useUnit(id || null);
   const updateUnit = useUpdateUnit();
   const deleteUnit = useDeleteUnit();
+  const addMember = useAddUnitMember();
+  const removeMember = useRemoveUnitMember();
 
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     unit_number: '',
     address: '',
@@ -61,6 +72,12 @@ export default function UnitDetail() {
     square_feet: '',
     parking_spaces: '',
     notes: '',
+  });
+  const [addMemberForm, setAddMemberForm] = useState({
+    user_id: '',
+    member_type: 'resident' as 'owner' | 'resident',
+    is_primary: false,
+    move_in_date: new Date().toISOString().split('T')[0],
   });
 
   const handleOpenEdit = () => {
@@ -101,6 +118,33 @@ export default function UnitDetail() {
     if (!id) return;
     await deleteUnit.mutateAsync(id);
     navigate('/members');
+  };
+
+  const handleAddMember = async () => {
+    if (!id || !addMemberForm.user_id) return;
+    await addMember.mutateAsync({
+      unit_id: id,
+      user_id: addMemberForm.user_id,
+      member_type: addMemberForm.member_type,
+      is_primary: addMemberForm.member_type === 'owner' ? addMemberForm.is_primary : false,
+      move_in_date: addMemberForm.move_in_date || undefined,
+    });
+    setShowAddMemberDialog(false);
+    setAddMemberForm({
+      user_id: '',
+      member_type: 'resident',
+      is_primary: false,
+      move_in_date: new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const handleRemoveMember = async () => {
+    if (!id || !memberToRemove) return;
+    await removeMember.mutateAsync({
+      unit_id: id,
+      member_id: memberToRemove,
+    });
+    setMemberToRemove(null);
   };
 
   const getPrimaryOwner = () => {
@@ -217,9 +261,17 @@ export default function UnitDetail() {
 
         <TabsContent value="members">
           <Card>
-            <CardHeader>
-              <CardTitle>Unit Members</CardTitle>
-              <CardDescription>Owners and residents of this unit</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Unit Members</CardTitle>
+                <CardDescription>Owners and residents of this unit</CardDescription>
+              </div>
+              {isManager && (
+                <Button onClick={() => setShowAddMemberDialog(true)} size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Member
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {primaryOwner ? (
@@ -262,6 +314,7 @@ export default function UnitDetail() {
                           <TableHead>Type</TableHead>
                           <TableHead>Contact</TableHead>
                           <TableHead>Move In</TableHead>
+                          {isManager && <TableHead className="text-right">Actions</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -282,6 +335,18 @@ export default function UnitDetail() {
                             <TableCell>
                               {member.move_in_date ? formatDate(member.move_in_date) : '-'}
                             </TableCell>
+                            {isManager && (
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setMemberToRemove(member.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -489,6 +554,100 @@ export default function UnitDetail() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete Unit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add Member Dialog */}
+      <Dialog open={showAddMemberDialog} onOpenChange={setShowAddMemberDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Member to Unit {unit?.unit_number}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="user_id">Select User/Email *</Label>
+              <Input
+                id="user_id"
+                placeholder="Enter email or user ID"
+                value={addMemberForm.user_id}
+                onChange={(e) => setAddMemberForm({ ...addMemberForm, user_id: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">User must be invited to the HOA first</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="member_type">Member Type *</Label>
+              <Select 
+                value={addMemberForm.member_type}
+                onValueChange={(value) => setAddMemberForm({ 
+                  ...addMemberForm, 
+                  member_type: value as 'owner' | 'resident',
+                  is_primary: value === 'owner' ? addMemberForm.is_primary : false
+                })}
+              >
+                <SelectTrigger id="member_type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owner">Owner</SelectItem>
+                  <SelectItem value="resident">Resident</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {addMemberForm.member_type === 'owner' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_primary"
+                  checked={addMemberForm.is_primary}
+                  onChange={(e) => setAddMemberForm({ ...addMemberForm, is_primary: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <Label htmlFor="is_primary" className="font-normal">Primary Owner</Label>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="move_in_date">Move In Date</Label>
+              <Input
+                id="move_in_date"
+                type="date"
+                value={addMemberForm.move_in_date}
+                onChange={(e) => setAddMemberForm({ ...addMemberForm, move_in_date: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddMemberDialog(false)}>Cancel</Button>
+            <Button 
+              onClick={handleAddMember} 
+              disabled={!addMemberForm.user_id || addMember.isPending}
+            >
+              {addMember.isPending ? 'Adding...' : 'Add Member'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Member Confirmation */}
+      <AlertDialog open={!!memberToRemove} onOpenChange={(open) => !open && setMemberToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this member from Unit {unit?.unit_number}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRemoveMember}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove Member
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

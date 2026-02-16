@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
 import { TopBar } from './TopBar';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { AIChatWidget } from '@/components/chat/AIChatWidget';
 
 export function AppLayout() {
   const { user, isLoading, userRole } = useAuth();
@@ -39,6 +40,7 @@ export function AppLayout() {
             <Outlet />
           </main>
         </div>
+        <AIChatWidget />
       </div>
     </SidebarProvider>
   );
